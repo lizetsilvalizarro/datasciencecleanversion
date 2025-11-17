@@ -306,15 +306,6 @@ print(f"\nDays with missing hours: {len(incomplete_days)}")
 check_hours = df.groupby('dteday')['hr'].nunique()
 print(check_hours.value_counts())
 
-if len(incomplete_days) > 0:
-    print("\nIncomplete days:")
-    for date, count in incomplete_days.items():
-        present_hours = df[df['dteday'] == date]['hr'].values
-        missing = [h for h in range(24) if h not in present_hours]
-        print(f"  {date.date()}: {count} hours present, missing {missing}")
-
-    total_missing = len(incomplete_days) * 24 - incomplete_days.sum()
-    print(f"\nTotal missing records: {total_missing}")
 
 
 # Check Duplicates in hr
