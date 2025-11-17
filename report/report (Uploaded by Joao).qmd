@@ -258,8 +258,8 @@ display(df.head()); df.info(); df.describe()
 ### Spotting Mistakes and Missing Data
 
 ```{python}
-# Handle missing values 
-# Justification: Missing values can bias descriptive statistics or model training.
+### Handle missing values 
+## Justification: Missing values can bias descriptive statistics or model training.
 # We'll check if any exist and decide on an action.
 
 missing = df.isna().sum() # to sum up each column if there is missing values
@@ -273,9 +273,10 @@ df = df.fillna(df.median(numeric_only=True))
 ```
 
 ```{python}
-### TEMPORAL AND DATA INTEGRITY VALIDATION
 
-##Justification: 
+### Temporal and data integrity validation
+
+## Justification: 
 # Ensure yr, mnth, weekday match dates and each day has 24 hourly records.
 
 
