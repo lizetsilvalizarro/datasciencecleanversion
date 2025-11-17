@@ -1,0 +1,809 @@
+---
+title: "Decoding Urban Mobility: Insights from bike rental data"
+author:
+ - "Kaoyan, Chen" 
+ - "Joao Filipe, Rodrigues Dos Santos Natal Marques"
+ - "Lizet Viviana, Silva Lizarro"
+ - "Oussama, Touhami"
+institute: Université de Lausanne
+date: November 17, 2025
+title-block-banner: "#0095C8" # chosen for the university of lausanne
+toc-location: right
+bibliography: references.bib
+csl: https://raw.githubusercontent.com/citation-style-language/styles/master/apa.csl
+format: 
+  ##############################################################################
+  # Use the code below if you want to render html, otherwise just comment it out#
+  html:
+    # if you want to remove the table of contents, set this to false
+    toc: true
+    number-sections: true
+    html-math-method: katex
+    self-contained: true
+    code-overflow: wrap
+    code-fold: true      # Show code but FOLDED (collapsible) in HTML
+    code-tools: true     # Add code tools dropdown menu
+    echo: true           # Show code in HTML (but folded)
+    include-in-header: # add custom css to make the text in the `</> Code` dropdown black
+      text: |
+        <style type="text/css">
+          .quarto-title-banner a {
+            color: #000000;
+          }
+        </style>
+  ##############################################################################
+  # Use the code below if you want to render pdf, otherwise just comment it out#
+  pdf:
+       # wrapping the code also in the pdf (otherwise, it overflows)
+    toc: false
+    echo: false          # HIDE code completely in PDF
+    include-in-header:
+      text: |
+        \usepackage{fvextra}
+        \DefineVerbatimEnvironment{Highlighting}{Verbatim}{
+          commandchars=\\\{\},
+          breaklines, breaknonspaceingroup, breakanywhere
+        }
+  ##############################################################################
+  # Use the code below if you want to render docx, otherwise just comment it out#
+  docx: 
+    echo: false          # HIDE code completely in DOCX
+  ##############################################################################
+
+jupyter: python3
+abstract: |
+  This project examines the factors that influence hourly bike-rental demand using a dataset that includes temporal, environmental, and contextual variables. Understanding these patterns is essential for designing smarter and greener urban mobility systems, as bike sharing helps reduce CO₂ emissions, improve public health, and generate economic benefits. Through exploratory analysis, we identify the strongest predictors of bike usage and quantify their influence, providing insights that support efficient resource planning and enhance the sustainability of bike-sharing systems.
+    
+execute: 
+  warning: false
+  # Note: echo setting is controlled per-format above (HTML, PDF, DOCX)
+---
+
+
+
+# Introduction
+
+## Background and Motivation
+
+We selected this topic to analyse and understand bike rental demand patterns, as it directly supports smarter and more sustainable city planning. By examining when and why people use shared bikes, both operators and local authorities can better allocate resources, reduce congestion, and encourage eco-friendly mobility.
+
+Bike-sharing programs first appeared in Europe in the 1960s and evolved into modern, technology-based systems during the mid-2000s¹. Our dataset (2011–2012) captures a pivotal phase in this evolution, when bike sharing was rapidly expanding and defining new patterns of urban mobility. This early expansion period offers a unique opportunity to study how users initially adopted these systems. With more than 3 billion trips recorded worldwide each year², bike sharing has become integral to sustainable transport, while presenting operational challenges such as maintaining availability and balancing station distribution.
+
+Beyond operational management, bike sharing delivers measurable environmental and social benefits that justify investment in shared mobility infrastructure. Bike sharing saves approximately 46,000 tons of CO₂ and 200 tons of air pollutants annually³, prevents over 1,000 chronic diseases, and generates €40 million in healthcare savings each year⁴. By reducing car dependency, it preserves 760,000 hours of productivity annually (€30 million value)⁵ and supports around 6,000 jobs across Europe⁶. Each euro invested yields an estimated 10% annual return in positive externalities⁷, demonstrating these systems are both economically efficient and environmentally sustainable.
+
+From a data science perspective, this dataset offers a rich environment for exploring multiple variable types and time-based behaviours. The data enable application of rigorous data-cleaning, exploratory, and predictive-modelling techniques to extract meaningful insights on usage trends and performance. These analytical approaches transform raw mobility data into actionable knowledge that enhances operational efficiency, sustainability, and strategic management of bike-sharing systems, ultimately contributing to smarter, healthier, and more liveable cities.
+
+
+## Project Objectives
+
+Our goals are:
+
+1.  Explore and visualize usage patterns on an hourly basis (e.g. by hour of day, day of week, season).
+
+2.  Build a regression model to estimate the number of bike rentals (cnt) given features such as weather, season, hour, and other contextual variables.
+
+3.  Interpret model results to understand which factors most strongly influence demand.
+
+4.  Provide insight and recommendations for operational decisions (for example, anticipating peak hours, adjusting supply).
+
+5.  More specifically, we aim to combine exploratory data analysis (EDA), explore the correlationship between dependent variables and independent variables, and create a model to predict the future trend, eventually to provide some managerial advice for the company.
+
+## Research Questions
+
+1.  What are the typical hourly demand patterns (e.g. morning peaks, evening peaks)?
+
+2.  How do weather conditions (temperature, humidity, wind, etc.) correlate with bike rentals?
+
+3.  Which features (hour, season, holiday, working day, weather) are the strongest predictors of demand?
+
+4.  How can insights from the model help in resource planning (e.g. pre-positioning bikes, increasing revenue, maintenance schedules)?
+
+
+---
+ 
+
+# Data
+
+## Sources
+**Dataset:** [UCI Machine Learning Repository - Bike Sharing Dataset](https://archive.ics.uci.edu/ml/datasets/bike+sharing+dataset) 
+
+
+## Description
+
+The dataset used in this project is the “Bike Sharing Dataset (hour.csv)”, obtained from https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset.  hour.csv contains hourly records of bike rentals along with various temporal and environmental factors that influence demand.
+The data captures user activity across different weather conditions, seasons, and times of the day, providing a rich foundation for both exploratory analysis and predictive modeling.
+
+
+## Loading Data
+
+```{python}
+import pandas as pd
+
+url = "https://drive.google.com/uc?export=download&id=1EirQlg1ULo2R5zLXToktc1CgHDnhlHel"
+df = pd.read_csv(url)
+print("Data loaded:", df.shape)
+
+display(df.head())
+```
+
+
+## Wrangling
+
+### General Transformations
+Document the data preprocessing steps taken, including cleaning, transformation, and any merging of datasets.
+```{python}
+### Convert date column to datetime format
+
+## Justification:
+#   The 'date' column is currently stored as text.
+#   Converting it to datetime format enables time-based operations
+#   (e.g., grouping by month, weekday, hour).
+
+
+df['dteday'] = pd.to_datetime(df['dteday']) # convert date column to datetime format
+
+# Validation if years are unique
+print("Confirm that the type is datetime64[ns] and that years 2011–2012 appear as expected:")
+print("Converted data type:", df['dteday'].dtypes)
+print("Unique years in dataset:", df['dteday'].dt.year.unique())
+```
+
+```{python}
+### Add interpretable categorical features
+
+## Justification:
+#   Create readable categorical variables to improve interpretation
+#   and later support grouped visualizations.
+
+
+# Season_name mapping
+df['season_name'] = df['season'].map({1:'Winter', 2:'Spring', 3:'Summer', 4:'Fall'}) # replace 1,2,3,4 with season name accordingly
+
+df['season_name'] = df['season_name'].astype('category')
+
+
+# Weekday_name mapping
+
+df['weekday_name'] = df['weekday'].map({0:'Sunday', 1:'Monday', 2:'Tuesday', 3:'Wednesday', 4:'Thursday', 5: 'Friday', 6:'Saturday'}) # replace 0,1,2,3,4,5,6 with the days of the week accordingly
+
+df['weekday_name'] = df['weekday_name'].astype('category')
+
+# Weekend indicator
+
+df['is_weekend'] = df['weekday'].isin([0,6]).map({True: '1', False: '0'})  #  1	The record corresponds to Saturday or Sunday
+                                                                            # 0	It’s a weekday (Monday–Friday)
+
+df = df.drop(columns=['workingday'], errors='ignore') # Drop the original 'workingday' column after creating 'is_weekend'
+                                                     # We removed workingday to avoid redundant variables and to simplify interppretation.
+                                                    
+
+# Hour grouping (binned by time of day)
+df['hour_group'] = pd.cut(
+    df['hr'],
+    bins=[-1,5,11,17,23],
+    labels=['Night','Morning','Afternoon','Evening']
+)
+
+df['hour_group'] = df['hour_group'].astype('category')
+
+
+# Wheather mapping
+df['weather_name'] = df['weathersit'].map({1:'Clear', 2:'Mist', 3:'Light Snow/Rain', 4:'Heavy Rain/Thunderstorm'})
+
+df['weather_name'] = pd.Categorical(
+    df['weather_name'],
+    categories=['Clear', 'Mist', 'Light Snow/Rain', 'Heavy Rain/Thunderstorm'],
+    ordered=True
+)
+
+
+# Validation
+df[['dteday','hr','hour_group','weekday_name', 'season_name','is_weekend', 'weather_name']].head(24)
+```
+
+
+```{python}
+# Encode categorical variables
+
+# Justification:
+#   Machine learning models require numeric input.
+#   Encoding categorical variables prepares data for modeling.
+
+
+df_encoded = pd.get_dummies(
+    df,
+    columns=['season_name', 'hour_group', 'weather_name','weekday_name'],
+    drop_first=True  # Avoid dummy variable trap
+)
+
+# Validation
+print("Encoding complete. New shape:", df_encoded.shape)
+df_encoded.head()
+```
+
+```{python}
+# Check numeric ranges
+
+# Justification:
+#   Although normalized variables already exist (temp, hum, windspeed),
+#   this check ensures consistency for potential future modeling.
+
+
+numeric_cols = ['temp', 'atemp', 'hum', 'windspeed']
+df[numeric_cols].describe().T
+```
+
+### Summary of Transformations
+
+| Step | Transformation | Justification | Validation |
+|------|----------------|---------------|-------------|
+| 1 | Load dataset | Import raw data into DataFrame | Confirmed shape (≈17k × 16) |
+| 2 | Convert `dteday` to datetime | Enable time-based analysis | Checked data type & years |
+| 3 | Add derived features (`season_name`, `is_weekend`, `hour_group`, `wheather_name`, 'weekday_name') | Improve interpretability & grouping | Reviewed sample outputs |
+| 4 | Encode categorical variables | Prepare data for ML | Verified shape and columns |
+| 5 | Check feature ranges | Validate normalized columns | Confirmed 0–1 range consistency |
+
+---
+
+All transformations are **justified**, **documented**, **reproducible**, and **validated**, ensuring a transparent preprocessing workflow.
+
+```{python}
+# Describe new organized data
+
+print(df.shape)
+
+display(df.head()); df.info(); df.describe()
+```
+
+### Spotting Mistakes and Missing Data
+
+```{python}
+# Handle missing values 
+# Justification: Missing values can bias descriptive statistics or model training.
+# We'll check if any exist and decide on an action.
+
+missing = df.isna().sum() # to sum up each column if there is missing values
+print("Missing values per column:\n", missing)
+
+# Validation
+print("Remaining missing values:", df.isna().sum().sum()) # no missing values in the result
+
+# If any small numeric columns have NaNs, fill with median (none expected here)
+df = df.fillna(df.median(numeric_only=True))
+```
+
+```{python}
+### TEMPORAL AND DATA INTEGRITY VALIDATION
+
+##Justification: 
+# Ensure yr, mnth, weekday match dates and each day has 24 hourly records.
+
+
+# Check Year Consistency
+df['actual_year'] = df['dteday'].dt.year
+df['expected_yr'] = df['actual_year'] - 2011
+year_errors = len(df[df['yr'] != df['expected_yr']])
+print(f"\nYear mismatches: {year_errors}")
+
+# Check Month Consistency
+df['actual_month'] = df['dteday'].dt.month
+month_errors = len(df[df['mnth'] != df['actual_month']])
+print(f"Month mismatches: {month_errors}")
+
+# Check Weekday Consistency
+df['pandas_weekday'] = df['dteday'].dt.weekday
+df['expected_weekday'] = (df['pandas_weekday'] + 1) % 7
+weekday_errors = len(df[df['weekday'] != df['expected_weekday']])
+print(f"Weekday mismatches: {weekday_errors}")
+
+# Check 24 Hours Per Day
+hours_per_day = df.groupby('dteday')['hr'].count()
+incomplete_days = hours_per_day[hours_per_day != 24]
+
+print(f"\nDays with missing hours: {len(incomplete_days)}")
+
+
+check_hours = df.groupby('dteday')['hr'].nunique()
+print(check_hours.value_counts())
+
+if len(incomplete_days) > 0:
+    print("\nIncomplete days:")
+    for date, count in incomplete_days.items():
+        present_hours = df[df['dteday'] == date]['hr'].values
+        missing = [h for h in range(24) if h not in present_hours]
+        print(f"  {date.date()}: {count} hours present, missing {missing}")
+
+    total_missing = len(incomplete_days) * 24 - incomplete_days.sum()
+    print(f"\nTotal missing records: {total_missing}")
+
+
+# Check Duplicates in hr
+duplicates = df.groupby(['dteday', 'hr']).size()
+duplicate_count = len(duplicates[duplicates > 1])
+print(f"\nDuplicate date-hour records: {duplicate_count}")
+
+# Summary
+completeness = (len(df) / (df['dteday'].nunique() * 24)) * 100
+print(f"\nData completeness: {completeness:.2f}%")
+
+total_days = df['dteday'].nunique()
+print(f"Percentage of days with missing hours: {(len(incomplete_days) / total_days) * 100:.2f}%")
+```
+
+**SUMMARY OF TEMPORAL AND DATA INTEGRITY VALIDATION**
+
+Data Completeness: 99.06%
+
+Missing Records: 165
+
+
+
+LIMITATIONS OF THE DATASET:
+1. The dataset contains 76 days with incomplete hourly data
+2. This represents 10.40% of all days
+
+POTENTIAL IMPACTS:
+
+- Missing hours may bias temporal pattern analysis
+- Daily aggregations will be underestimated for incomplete days
+- Time series models may be affected by data gaps
+- Peak hour analysis should account for missing observations
+
+
+RECOMMENDATIONS FOR ANALYSIS:
+
+- For now we continue using all available data
+- For future testing we'll consider creating a 'complete days only' subset
+- For comparison we can test model performance with/without incomplete days
+- Check if findings change when excluding incomplete days
+
+
+###  Interpretation of Boxplots
+The boxplots above visualize the spread and potential outliers among the main numerical variables (`cnt`, `temp`, `atemp`, `hum`, and `windspeed`).
+
+- **`cnt` (total rentals):** Shows several high-end points beyond the upper whisker, representing **peak demand hours** (e.g., weekday commutes or summer weekends). These are not data errors but **valid extreme values**.  
+- **`temp` and `atemp`:** Both are normalized between 0 and 1, showing smooth distributions without extreme deviations, suggesting well-scaled temperature measures.  
+- **`hum` (humidity):** Displays a slightly skewed distribution with upper-end values near 1.0, likely corresponding to humid or rainy days — realistic rather than anomalous.  
+- **`windspeed`:** Contains a few high-end outliers, possibly due to **sensor measurement spikes** or rare weather conditions. These are few and not impactful on model training.
+
+**Conclusion:**  
+Most outliers represent **real phenomena** rather than data-entry errors.  
+Thus, they will be **retained** for further exploratory analysis and modeling to preserve the natural variability of bike rental behavior.
+
+##Data Cleaning Checklist
+Before moving to analysis, verify:
+
+✓ All column names are clean and consistent
+✓ Data types are appropriate for each variable 
+✓ Missing values are identified and handled 
+✓ Outliers are investigated and documented 
+✓ Categorical variables are properly encoded 
+✓ Duplicate rows are checked and removed if needed
+✓ Date/time variables are in proper format ✓ Cleaned data is saved for reproducibility
+
+```{python}
+# Pre-Analysis Verification
+
+# Justification:
+#   Confirm data readiness before any statistical analysis or modeling.
+#   This step validates structure, completeness, and data types.
+
+
+# ✓ Check column names are clean and consistent
+print("Column names:")
+print(df.columns.tolist())
+
+# ✓ Verify data types are appropriate for each variable
+print("\nData types:")
+print(df.dtypes)
+
+# ✓ Identify missing values (note: should be 0 or very few)
+print("\nMissing values per column:")
+print(df.isna().sum())
+
+# ✓ Temporal and data integrity validation
+print("\nTemporal and Data Integrity Validation:")
+print(f"Year mismatches: {year_errors}")
+print(f"Month mismatches: {month_errors}")
+print(f"Weekday mismatches: {weekday_errors}")
+print(f"Days with missing hours: {len(incomplete_days)}")
+print(f"Duplicate date-hour records: {duplicate_count}")
+
+# ✓ Reconfirm outlier investigation status
+print("\nOutlier summary:")
+print("Extreme rental values already checked — valid high peaks retained.")
+
+# ✓ Confirm categorical encoding and date format
+print("\nCategorical and datetime validation:")
+print("Categorical columns:", [c for c in df.columns if df[c].dtype == 'object'])
+print("Datetime column:", df['dteday'].dtype)
+
+# ✓ Verify duplicate rows
+print("\nDuplicate rows count:", df.duplicated().sum())
+
+# ✓ Confirm chronological order
+print("Date range:", df['dteday'].min(), "→", df['dteday'].max())
+
+# ✓ Save cleaned data for reproducibility
+clean_path = "bike_cleaned.csv"
+df.to_csv(clean_path, index=False)
+print(f"Cleaned dataset saved successfully as '{clean_path}'")
+```
+
+
+---
+# EDA – Exploring Variable Distributions
+We start by examining how individual variables behave (their variation).  
+Following Module 3, we visualize both **numeric** and **categorical** variables  
+to understand their shape, spread, and possible outliers.
+
+## Hourly Demand Patterns Analysis
+Understanding the behavior of the bike-sharing system requires an analytical approach that considers multiple temporal scales. The analysis begins with the Distribution of Bike Rentals to provide an overview of overall usage levels, and then moves to the examination of hourly, daily, and monthly patterns, which reveal variations across the day, week, and year. A subsequent analysis of seasonal trends helps clarify how climatic conditions shape demand throughout the year. Finally, contrasting hourly patterns with seasonal effects allows us to understand how short-term and long-term temporal dynamics interact to define overall system usage.
+
+### Distribution of Bike Rentals
+
+
+```{python}
+#Histogram and KDE plot for 'cnt' (total rentals)
+plt.figure(figsize=(8,5))
+sns.histplot(df['cnt'], bins=30, kde=True)
+plt.title('Distribution of Total Bike Rentals (cnt)')
+plt.xlabel('Total Rentals')
+plt.ylabel('Frequency')
+plt.show()
+```
+
+The distribution of total bike rentals (cnt) is strongly right-skewed, indicating that most hours record relatively low to moderate rental activity, while a smaller number of hours reach very high demand peaks.
+
+This pattern suggests that:
+- Bike usage is not constant throughout the day, there are specific times (likely rush hours or weekends) with much higher demand.
+- The skewness reflects contextual influences such as weather, working days, and time of day.
+- The majority of hours have fewer than 200 rentals, showing that high-demand situations (over 600 rentals) are exceptional events rather than the norm.
+
+Overall, the shape highlights high variability and strong temporal effects in bike-sharing demand, justifying deeper exploration by time and external conditions.
+
+#### Variations across the day, week, and year
+```{python}
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+plt.figure(figsize=(16,12))
+
+# Average rentals by hour
+plt.subplot(3,1,1)
+hourly_avg = df.groupby('hr')['cnt'].mean()
+sns.lineplot(x=hourly_avg.index, y=hourly_avg.values, marker='o')
+plt.title('Average Bike Rentals by Hour')
+plt.xlabel('Hour of the Day')
+plt.ylabel('Average Rentals')
+
+# Average rentals by weekday 
+plt.subplot(3,1,2)
+weekday_avg = df.groupby('weekday_name')['cnt'].mean()
+sns.lineplot(x=weekday_avg.index, y=weekday_avg.values, marker='o')
+plt.title('Average Bike Rentals by Weekday')
+plt.xlabel('Day of the Week')
+
+plt.ylabel('Average Rentals')
+
+# Average rentals by month 
+plt.subplot(3,1,3)
+month_avg = df.groupby('mnth')['cnt'].mean()
+sns.lineplot(x=month_avg.index, y=month_avg.values, marker='o')
+plt.title('Average Bike Rentals by Month')
+plt.xlabel('Month')
+plt.ylabel('Average Rentals')
+
+plt.tight_layout()
+plt.show()
+```
+
+Average Bike Rentals by Hour
+
+The hourly pattern shows two clear peaks one around 8 AM and another near 5–6 PM, corresponding to morning and evening commuting hours. Early morning periods (before 6 AM) and late night hours (after 9 PM) show minimal activity. This behavior indicates that bike sharing is primarily used for work- or school-related travel, reflecting strong time-of-day dependencies and typical urban mobility rhythms.
+
+Average Bike Rentals by Weekday
+
+Bike rentals tend to be higher on working days, particularly Thursday and Friday, and lower on weekends, especially Sunday. This pattern reinforces the idea that the system is mainly used for functional weekday transportation rather than leisure. The moderate usage observed on Saturdays suggests some recreational use but at a lower intensity compared to weekdays.
+
+
+Average Bike Rentals by Month
+
+The monthly pattern reveals a strong seasonal trend: rentals increase steadily from February to June, remain high throughout summer (June–September), and decline sharply from October onward. This reflects the influence of weather and temperature, as warmer conditions generally promote cycling, while colder months reduce usage due to less favorable conditions.
+
+Taken together, these visualizations show that bike rental demand follows clear temporal cycles: daily (commuting peaks), weekly (higher weekday usage), and seasonal (weather-driven fluctuations). Understanding these patterns is essential for resource allocation, system planning, and operational decision-making.
+
+### Demand by Season
+
+#### Boxplot of total rentals by season
+```{python}
+
+# Boxplot of total rentals by season
+plt.figure(figsize=(8,5))
+sns.boxplot(x='season_name', y='cnt', data=df, palette='coolwarm')
+plt.title('Bike Rentals by Season')
+plt.xlabel('Season')
+plt.ylabel('Total Rentals (cnt)')
+plt.show()
+```
+
+The boxplot shows clear seasonal differences in total bike rentals:
+- Summer and Fall display the highest median rental counts and the widest interquartile ranges (IQR), indicating both higher and more variable demand.
+- Spring presents moderate rental levels, reflecting the gradual return of favorable weather.
+- Winter has by far the lowest median and spread, showing that cold and harsh conditions drastically reduce bike usage.
+
+The presence of outliers in all seasons — especially in Summer and Fall — suggests that certain peak days or hours experience unusually high demand, possibly due to special events or ideal weather.
+
+Bike rental activity is strongly seasonal, peaking in warm months and dropping sharply in winter, confirming that weather and temperature are major drivers of usage in bike-sharing systems.
+
+### Interaction Between Hourly Patterns and Seasonal Variations
+
+Building on these findings, it becomes essential to examine not only how demand varies across seasons but also how seasonal conditions influence the hourly distribution of rentals. By comparing hourly patterns within each season, we can determine whether the characteristic morning and evening peaks observed throughout the year intensify, weaken, or shift depending on weather conditions. This combined perspective allows for a deeper understanding of how short-term (hourly) and long-term (seasonal) temporal dynamics interact, and it sets the stage for the comparative analysis that follows.
+
+```{python}
+
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Season names for prettier plots
+season_names = {
+    1: "Spring",
+    2: "Summer",
+    3: "Fall",
+    4: "Winter"
+}
+
+# 1. Build hour × season mean tables for each year
+
+# Pivot table for 2011 (yr = 0)
+pivot_2011 = (
+    df[df["yr"] == 0]
+    .pivot_table(index="hr", columns="season", values="cnt", aggfunc="mean")
+    .rename(columns=season_names)
+)
+
+# Pivot table for 2012 (yr = 1)
+pivot_2012 = (
+    df[df["yr"] == 1]
+    .pivot_table(index="hr", columns="season", values="cnt", aggfunc="mean")
+    .rename(columns=season_names)
+)
+
+# 2. Plot side-by-side heatmaps for comparison
+
+plt.figure(figsize=(14, 6))
+
+# Heatmap for 2011
+plt.subplot(1, 2, 1)
+sns.heatmap(pivot_2011, annot=False, cmap="viridis")
+plt.title("Mean Rentals by Hour × Season (2011)")
+plt.xlabel("Season")
+plt.ylabel("Hour of Day")
+
+# Heatmap for 2012
+plt.subplot(1, 2, 2)
+sns.heatmap(pivot_2012, annot=False, cmap="viridis")
+plt.title("Mean Rentals by Hour × Season (2012)")
+plt.xlabel("Season")
+plt.ylabel("Hour of Day")
+
+plt.tight_layout()
+plt.show()
+```
+
+| Insight         | 2011               | 2012              | Interpretation                 |
+|-----------------|---------------------|--------------------|--------------------------------|
+| Peak hours      | 8 AM, 5–6 PM        | Same               | Commuting-driven demand        |
+| Highest seasons | Summer & Fall        | Same but stronger  | Weather is the dominant factor |
+| Overall demand  | Moderate             | Much higher        | System growth/adoption         |
+| Winter usage    | Low                  | Low                | Weather constraints persist    |
+
+
+The heatmaps show that bike-sharing demand follows clear and stable daily cycles, with strong peaks during morning and evening commuting hours. Summer and fall consistently display the highest usage, while winter remains the lowest. Demand is notably higher in 2012, indicating system growth and wider user adoption. These patterns highlight the importance of planning fleet allocation and operations around predictable peak periods.
+
+## How Weather Conditions Affect Bicycle Rental Demand
+### Impact of Weather Conditions
+
+```{python}
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Order weather categories by median cnt (so plots read from low→high demand)
+
+weather_order = (
+    df.groupby('weather_name')['cnt']
+      .median()
+      .sort_values()
+      .index.tolist()
+)
+
+plt.figure(figsize=(8,5))
+sns.boxplot(
+    data=df, x='weather_name', y='cnt',
+    order=weather_order, showfliers=True
+)
+plt.title('Bike Rentals (cnt) by Weather Condition')
+plt.xlabel('Weather')
+plt.ylabel('Total Rentals (cnt)')
+plt.xticks(rotation=10)
+plt.tight_layout()
+plt.show()
+```
+
+The boxplot clearly shows that bike rentals decrease as weather worsens:
+
+Under clear weather, rentals are the highest and most variable. Mist and light snow/rain conditions show moderate but visibly lower usage. 
+During heavy rain or thunderstorms, bike usage drops sharply, with very low median and narrow spread.
+
+This confirms that adverse weather strongly discourages cycling, while clear conditions maximize ridership.
+
+### Effect of Environmental Factors on Bike Rental Demand
+
+```{python}
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+features = ['temp', 'atemp', 'hum', 'windspeed']
+
+fig, axes = plt.subplots(2, 2, figsize=(10,8))
+axes = axes.ravel()
+
+for ax, col in zip(axes, features):
+    # scatter + trend line
+    sns.regplot(
+        data=df, x=col, y='cnt',
+        scatter_kws={'alpha':0.25, 's':12},
+        line_kws={'linewidth':2},
+        lowess=True, ax=ax
+    )
+    ax.set_title(f'{col} vs cnt')
+    ax.set_xlabel(col)
+    ax.set_ylabel('cnt')
+
+plt.tight_layout()
+plt.show()
+```
+
+| Variable                | Relationship       | Interpretation                                                             |
+| ----------------------- | ------------------ | -------------------------------------------------------------------------- |
+| Temperature (temp)      | ++ Strong Positive | Higher temperatures increase bike usage, especially in comfortable ranges. |
+| Feels-like temp (atemp) | + Positive         | Pleasant perceived temperature encourages cycling.                         |
+| Humidity (hum)          | − Slight Negative  | High humidity reduces usage due to discomfort or rain-related conditions.  |
+| Windspeed (windspeed)   | − Weak Negative    | Stronger winds make biking less appealing, though the effect is small.     |
+
+
+
+### Effect of Environmental Factors on Bike Rental Demand
+
+To strengthen the understanding of how weather conditions shape bike rental behavior, it is helpful to use a modeling approach that can reveal the relative contribution of each climatic variable. The Random Forest Regressor offers this advantage by evaluating which features most effectively improve prediction accuracy across numerous decision trees. The resulting importance scores provide actionable insights, highlighting which environmental factors such as humidity, perceived temperature, windspeed, or actual temperature
+
+```{python}
+from sklearn.ensemble import RandomForestRegressor
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Select weather features
+X = df[['temp','hum','windspeed','atemp']]
+y = df['cnt']
+
+# Train the model
+model = RandomForestRegressor().fit(X, y)
+
+# Extract feature importances
+importances = pd.Series(model.feature_importances_, index=X.columns).sort_values(ascending=False)
+
+# Display table
+print(importances)
+
+# Bar chart of feature importances
+plt.figure(figsize=(6,4))
+importances.plot(kind='bar', color='goldenrod')
+plt.title('Feature Importance from Random Forest')
+plt.xlabel('Weather Variables')
+plt.ylabel('Importance Score')
+plt.tight_layout()
+plt.show()
+```
+
+# Preliminary Analysis
+
+Before choosing a final prediction model, we first carried out an exploratory analysis to better understand how the variables behave and how they relate to bike rental demand. At this stage, the goal is not to build the strongest predictive model yet, but to identify patterns that will guide our modelling decisions.
+
+## Methods Used So Far
+
+### 1. Exploratory Data Analysis (EDA)
+
+We mainly used visual tools such as:
+
+- **Heatmaps** to explore how demand changes across hours and seasons.
+- **Boxplots** to compare distributions of rentals across weather conditions and seasons.
+- **Scatterplots and trend lines** to observe relationships between environmental variables (temperature, humidity, windspeed) and demand.
+- **Distribution plots** to study the shape and skewness of rental counts.
+ 
+EDA helps us understand the structure of the data, detect patterns, confirm assumptions, and identify which variables are likely to be important later.  
+For example, strong hourly peaks and seasonal differences suggest temporal variables will play a key role.
+
+---
+
+## Next Steps Toward Modelling
+
+Although we explored the data visually, we have not yet selected the final model. However, based on our findings, we will consider:
+
+### Potential models to test:
+- **Multiple Linear Regression** (simple, interpretable baseline)
+- **Random Forest Regression** (can capture patterns not seen in EDA)
+
+These models are not final choices yet; they are candidates informed by what we learned through EDA.
+
+So far, our analysis has focused on:
+- Understanding temporal and weather-related patterns
+- Identifying variables that seem important based on visual exploration
+- Preparing the data for modelling (cleaning, encoding, feature creation)
+
+In the next stage, we will test and compare predictive models using the insights gained from EDA.
+
+
+
+
+# Appendix A: Description of Variables in hour.csv
+
+**A.1 Temporal Variables**
+           
+ |Variable                 | Description                                |
+ |-------------------------| -------------------------------------------|
+ |dteday                   | Date                                       | 
+ | mnth                    | Month (1–12)                               |
+ |hr                       | Hour of the day (0–23)                     | 
+ |weekday	Day of the week  | (0 = Sunday … 6 = Saturday)                | 
+ |workingday               | 1 = Working day, 0 = Weekend or holiday    | 
+ | holiday                 | Indicates if the day is a holiday          |
+
+
+**A.2 Seasonal and Weather Category Variables**
+
+ |Variable                  | Description                                           |
+ |--------------------------| ------------------------------------------------------|
+ |season                    | Season (1 = Spring, 2 = Summer, 3 = Fall, 4 = Winter) | 
+ |weathersit                | Categorical weather situation                         |
+ 
+ |Code                      | Weather Description                                                                     |
+ |--------------------------|-----------------------------------------------------------------------------------------|
+ |1                         | Clear, few clouds, partly cloudy                                                        |
+ |2                         | Mist + cloudy / mist + broken clouds / mist + few clouds                                |
+ |3                         | Light snow; light rain + thunderstorm + scattered clouds; light rain + scattered clouds |
+ |4                         | Severe weather: heavy rain + ice pellets + thunderstorm + mist; snow + fog              | 
+
+
+**A.3 Continuous Weather Variables**
+
+ |Variable                                  | Description                                           |
+ |------------------------------------------|-------------------------------------------------------|
+ |temp	Normalized temperature              | (actual temp / 41°C)                                   |
+ |atemp	Normalized “feels-like” temperature | (feels-like temp / 50°C)                              |                                               
+ |temp	hum	Normalized humidity             | (humidity / 100)                                       |
+ |windspeed	Normalized wind speed           | (windspeed / 67)                                       | 
+ 
+
+**A.4 Demand Variables**
+
+ |Variable                                  | Description                                  |
+ |------------------------------------------| ---------------------------------------------|
+ |casual                                    |Rentals by non-registered users               |
+ |registered                                |Rentals by registered users                   |                                               
+ |cnt	Total                                 |number of bike rentals (casual + registered)  |
+ 
+
+# Appendix B: References
+
+¹ Shaheen, S. & Cohen, A. (2019). The Evolution of Bike Sharing: History, Trends, and Future Directions. Institute of Transportation Studies, University of California, Berkeley.
+² International Transport Forum (ITF) (2023). Bike Share Deployment and Use in 2023. Paris: OECD Publishing.
+³ European Cyclists' Federation (ECF) (2021). The Role of Bike Sharing in Climate Action and Urban Mobility. Brussels: ECF.
+⁴ World Health Organization (WHO) (2020). Health Economic Assessment Tool (HEAT) for Cycling and Walking: User Guide. Copenhagen: WHO Regional Office for Europe.
+⁵ Transport & Environment (2022). The Economic and Environmental Impact of Shared Micro-Mobility in Europe. Brussels: Transport & Environment.
+⁶ Transport & Environment (2022). The Economic and Environmental Impact of Shared Micro-Mobility in Europe. Brussels: Transport & Environment.
+
