@@ -6,7 +6,7 @@ author:
  - "Lizet Viviana, Silva Lizarro"
  - "Oussama, Touhami"
 institute: Université de Lausanne
-date: November 11, 2025
+date: November 17, 2025
 title-block-banner: "#0095C8" # chosen for the university of lausanne
 toc-location: right
 bibliography: references.bib
@@ -52,7 +52,8 @@ format:
 
 jupyter: python3
 abstract: |
-  This is the abstract of the report. It should be a short summary of the project, the data, the analysis and the results. It should be concise and to the point. It should not be longer than 250 words.
+  This project examines the factors that influence hourly bike-rental demand using a dataset that includes temporal, environmental, and contextual variables. Understanding these patterns is essential for designing smarter and greener urban mobility systems, as bike sharing helps reduce CO₂ emissions, improve public health, and generate economic benefits. Through exploratory analysis, we identify the strongest predictors of bike usage and quantify their influence, providing insights that support efficient resource planning and enhance the sustainability of bike-sharing systems.
+    
 execute: 
   warning: false
   # Note: echo setting is controlled per-format above (HTML, PDF, DOCX)
@@ -252,7 +253,7 @@ display(df.head()); df.info(); df.describe()
 ### Spotting Mistakes and Missing Data
 
 ```{python}
-# ANDLE MISSING VALUES
+# Handle missing values 
 # Justification: Missing values can bias descriptive statistics or model training.
 # We'll check if any exist and decide on an action.
 
@@ -281,9 +282,8 @@ month_from_date  = df['dteday'].dt.month
 # (pandas dayofweek: Monday=0,...,Sunday=6) -> rotate +1 mod 7 to make Sunday=0
 weekday_sun0_from_date = (df['dteday'].dt.dayofweek + 1) % 7
 
-# --------------------------------------------------------------
-# 2) Basic domain checks
-# --------------------------------------------------------------
+## 2) Basic domain checks
+
 
 # Check if values fall within expected ranges
 hr_in_range      = df['hr'].between(0, 23).all()
@@ -291,9 +291,7 @@ mnth_in_range    = df['mnth'].between(1, 12).all()
 weekday_in_range = df['weekday'].isin(range(0,7)).all() if 'weekday' in df.columns else True
 yr_in_range      = df['yr'].isin([0,1]).all() if 'yr' in df.columns else True
 
-# --------------------------------------------------------------
 # 3) Consistency checks with 'dteday'
-# --------------------------------------------------------------
 # Compare each encoded column with its equivalent derived from 'dteday'
 mnth_matches    = (df['mnth'] == month_from_date).all() if 'mnth' in df.columns else True
 weekday_matches = (df['weekday'] == weekday_sun0_from_date).all() if 'weekday' in df.columns else True
@@ -304,10 +302,9 @@ if 'yr' in df.columns:
     yr_decoded = df['yr'].map(yr_map)
     yr_matches = (yr_decoded == year_from_date).all()
 
-# --------------------------------------------------------------
+
 # 4) Hourly coverage check per day
 
-# --------------------------------------------------------------
 # Each 'dteday' should contain all 24 hours (0–23)
 expected_hours = set(range(24))
 hours_by_day = df.groupby(df['dteday'].dt.date)['hr'].apply(set)
@@ -318,9 +315,8 @@ extra_hours_report   = hours_by_day.apply(lambda s: sorted(s - expected_hours))
 days_missing_hours = missing_hours_report[missing_hours_report.apply(len) > 0]
 days_extra_hours   = extra_hours_report[extra_hours_report.apply(len) > 0]
 
-# --------------------------------------------------------------
 # 5) Build mismatch report per column (if inconsistencies found)
-# --------------------------------------------------------------
+
 mismatch_rows = []
 
 if 'mnth' in df.columns:
@@ -338,9 +334,9 @@ if 'yr' in df.columns:
     if not mm.empty:
         mismatch_rows.append(("yr_vs_dteday", mm[['dteday','yr']].head(10)))
 
-# --------------------------------------------------------------
+
 # 6) Display summary results
-# --------------------------------------------------------------
+
 print("=== BASIC DOMAIN CHECKS ===")
 print(f"hr in [0,23]: {hr_in_range}")
 print(f"mnth in [1,12]: {mnth_in_range}")
@@ -421,13 +417,13 @@ plt.show()
 
 ```{python}
 # Scatter plots over time of bike rental
-# ------------------------------------------------------------
+
 # Justification:
 #   To detect sudden spikes or drops in rentals that may
 #   correspond to anomalies such as holidays or weather changes.
 
 
-plt.figure(figsize=(10,5)) # # Set the overall figure size for better readability of the time series scatter plot
+plt.figure(figsize=(10,5)) #Set the overall figure size for better readability of the time series scatter plot
 
 sns.scatterplot(data=df, x='dteday', y='cnt', s=10, alpha=0.6) # Sets point size to 10 pixels,Sets transparency to 60%
 plt.title("Scatter Plot of Total Rentals Over Time")
@@ -463,8 +459,8 @@ Before moving to analysis, verify:
 # Pre-Analysis Verification
 
 # Justification:
-#   Confirm data readiness before any statistical analysis or modeling.
-#   This step validates structure, completeness, and data types.
+#  Confirm data readiness before any statistical analysis or modeling.
+#  This step validates structure, completeness, and data types.
 
 
 # 1Check column names are clean and consistent
@@ -750,7 +746,7 @@ plt.show()
 
 ### Effect of Environmental Factors on Bike Rental Demand
 
-To strengthen the understanding of how weather conditions shape bike rental behavior, it is helpful to use a modeling approach that can reveal the relative contribution of each climatic variable. The Random Forest Regressor offers this advantage by evaluating which features most effectively improve prediction accuracy across numerous decision trees. The resulting importance scores provide actionable insights, highlighting which environmental factors—such as humidity, perceived temperature, windspeed, or actual temperature
+To strengthen the understanding of how weather conditions shape bike rental behavior, it is helpful to use a modeling approach that can reveal the relative contribution of each climatic variable. The Random Forest Regressor offers this advantage by evaluating which features most effectively improve prediction accuracy across numerous decision trees. The resulting importance scores provide actionable insights, highlighting which environmental factors such as humidity, perceived temperature, windspeed, or actual temperature
 
 ```{python}
 from sklearn.ensemble import RandomForestRegressor
@@ -806,7 +802,7 @@ Although we explored the data visually, we have not yet selected the final model
 
 ### Potential models to test:
 - **Multiple Linear Regression** (simple, interpretable baseline)
-- **Random Forest Regression** (can capture non-linear patterns seen in EDA)
+- **Random Forest Regression** (can capture patterns not seen in EDA)
 
 These models are not final choices yet; they are candidates informed by what we learned through EDA.
 
@@ -822,41 +818,48 @@ In the next stage, we will test and compare predictive models using the insights
 
 # Appendix A: Description of Variables in hour.csv
 
-A.1 Temporal Variables
-Variable	Description
-instant	Record index
-dteday	Date
-yr	Year (0 = 2011, 1 = 2012)
-mnth	Month (1–12)
-hr	Hour of the day (0–23)
-weekday	Day of the week (0 = Sunday … 6 = Saturday)
-workingday	1 = Working day, 0 = Weekend or holiday
-holiday	Indicates if the day is a holiday
-
-A.2 Seasonal and Weather Category Variables
-Variable	Description
-season	Season (1 = Spring, 2 = Summer, 3 = Fall, 4 = Winter)
-weathersit	Categorical weather situation
-Weather Categories
-Code	Weather Description
-1	Clear, few clouds, partly cloudy
-2	Mist + cloudy / mist + broken clouds / mist + few clouds
-3	Light snow; light rain + thunderstorm + scattered clouds; light rain + scattered clouds
-4	Severe weather: heavy rain + ice pellets + thunderstorm + mist; snow + fog
-
-A.3 Continuous Weather Variables
-Variable	Description
-temp	Normalized temperature (actual temp / 41°C)
-atemp	Normalized “feels-like” temperature (feels-like temp / 50°C)
-hum	Normalized humidity (humidity / 100)
-windspeed	Normalized wind speed (windspeed / 67)
-
-A.4 Demand Variables
-Variable	Description
-casual	Rentals by non-registered users
-registered	Rentals by registered users
-cnt	Total number of bike rentals (casual + registered)
+**A.1 Temporal Variables**
+           
+ |Variable                 | Description                                |
+ |-------------------------| -------------------------------------------|
+ |dteday                   | Date                                       | 
+ | mnth                    | Month (1–12)                               |
+ |hr                       | Hour of the day (0–23)                     | 
+ |weekday	Day of the week  | (0 = Sunday … 6 = Saturday)                | 
+ |workingday               | 1 = Working day, 0 = Weekend or holiday    | 
+ | holiday                 | Indicates if the day is a holiday          |
 
 
+**A.2 Seasonal and Weather Category Variables**
+
+ |Variable                  | Description                                           |
+ |--------------------------| ------------------------------------------------------|
+ |season                    | Season (1 = Spring, 2 = Summer, 3 = Fall, 4 = Winter) | 
+ |weathersit                | Categorical weather situation                         |
+ 
+ |Code                      | Weather Description                                                                     |
+ |--------------------------|-----------------------------------------------------------------------------------------|
+ |1                         | Clear, few clouds, partly cloudy                                                        |
+ |2                         | Mist + cloudy / mist + broken clouds / mist + few clouds                                |
+ |3                         | Light snow; light rain + thunderstorm + scattered clouds; light rain + scattered clouds |
+ |4                         | Severe weather: heavy rain + ice pellets + thunderstorm + mist; snow + fog              | 
 
 
+**A.3 Continuous Weather Variables**
+
+ |Variable                                  | Description                                           |
+ |------------------------------------------|-------------------------------------------------------|
+ |temp	Normalized temperature              | (actual temp / 41°C)                                   |
+ |atemp	Normalized “feels-like” temperature | (feels-like temp / 50°C)                              |                                               
+ |temp	hum	Normalized humidity             | (humidity / 100)                                       |
+ |windspeed	Normalized wind speed           | (windspeed / 67)                                       | 
+ 
+
+**A.4 Demand Variables**
+
+ |Variable                                  | Description                                  |
+ |------------------------------------------| ---------------------------------------------|
+ |casual                                    |Rentals by non-registered users               |
+ |registered                                |Rentals by registered users                   |                                               
+ |cnt	Total                                 |number of bike rentals (casual + registered)  |
+ 
